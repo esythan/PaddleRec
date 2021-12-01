@@ -49,15 +49,17 @@ class StaticModel():
             for i in range(2, self.slot_num + 2)
         ]
 
+        show = paddle.static.data(
+            name="show", shape=[None, 1], dtype="int64", lod_level=1)
         label = paddle.static.data(
             name="click", shape=[None, 1], dtype="int64", lod_level=1)
 
-        feeds_list = [label] + slot_ids
+        feeds_list = [show, label] + slot_ids
         return feeds_list
 
     def net(self, input, is_infer=False):
-        self.label_input = input[0]
-        self.slot_inputs = input[1:]
+        self.label_input = input[1]
+        self.slot_inputs = input[2:]
 
         dnn_model = BenchmarkDNNLayer(
             self.dict_dim,
