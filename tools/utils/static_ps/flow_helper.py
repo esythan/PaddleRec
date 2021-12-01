@@ -15,6 +15,7 @@
 from __future__ import print_function
 import os
 import sys
+import shutil
 from pathlib import Path
 import warnings
 import logging
@@ -50,21 +51,9 @@ def file_ls(path_array, train_local, client):
             if len(cur_path) > 0:
                 i = i.strip("/")
                 result += [i.rstrip("/") + "/" + j for j in cur_path]
+
     logger.info("file ls result = {}".format(result))
     return result
-
-
-def data_ready(train_local, client, data_donefile, sleep_second):
-    while True:
-        if train_local:
-            donefile = Path(data_donefile)
-            if donefile.is_file():
-                return
-        else:
-            if client.is_file(data_donefile):
-                return
-        logger.info("wait for data ready: {}".format(data_donefile))
-        time.sleep(sleep_second)
 
 
 def get_next_day(day):
@@ -107,6 +96,16 @@ def get_online_pass_interval(start_day, end_day, split_interval,
     return online_pass_interval
 
 
+def load_model(model_path, mode, train_local, client):
+    if not train_local and (mode == 1 or mode == 2):
+        local_path = "./dnn_plugin"
+        if os.path.exists(local_path):
+            shutil.rmtree(local_path)
+        os.mkdir(local_path)
+        client.download(model_path + "/dnn_plugin", local_path)
+    fleet.load_model(model_path, mode)
+
+
 def save_model(exe, output_path, day, pass_id, mode=0):
     """
     Args:
@@ -120,33 +119,7 @@ def save_model(exe, output_path, day, pass_id, mode=0):
     suffix_name = "/%s/%s/" % (day, pass_id)
     model_path = output_path + suffix_name
     logger.info("going to save_model %s" % model_path)
-    fleet.save_persistables(exe, model_path, None, mode=mode)
-
-
-def save_inference_model(exe,
-                         output_path,
-                         day,
-                         pass_id,
-                         feed_vars,
-                         target_vars,
-                         mode=0):
-    """
-    Args:
-        output_path(str): output path
-        day(str|int): training day
-        pass_id(str|int): training pass id
-
-    """
-    day = str(day)
-    pass_id = str(pass_id)
-    suffix_name = "/%s/%s/inference_model/" % (day, pass_id)
-    model_path = output_path + suffix_name
-    logger.info("going to save_inference_model %s" % model_path)
-    fleet.save_inference_model(
-        exe,
-        model_path, [feed.name for feed in feed_vars],
-        target_vars,
-        mode=0)
+    fleet.save_persistables(exe, model_path, mode=mode)
 
 
 def save_batch_model(exe, output_path, day):
@@ -168,6 +141,7 @@ def save_batch_model(exe, output_path, day):
     day = str(day)
     suffix_name = "/%s/0/" % day
     model_path = output_path + suffix_name
+    logger.info("going to save_batch_model %s" % model_path)
     fleet.save_persistables(exe, model_path, mode=3)
 
 
@@ -190,8 +164,6 @@ def write_model_donefile(output_path,
         hadoop_fs_ugi(str): hdfs/afs fs ugi
         hadoop_home(str): hadoop home, default is "$HADOOP_HOME"
         donefile_name(str): donefile name, default is "donefile.txt"
-
-
     """
     day = str(day)
     pass_id = str(pass_id)
@@ -325,3 +297,236 @@ def get_last_save_model(output_path, train_local, client):
         last_path = content[2]
         xbox_base_key = int(content[1])
         return [last_save_day, last_save_pass, last_path, xbox_base_key]
+
+
+def get_last_save_xbox_base(output_path, train_local, client):
+    r"""
+    get last saved base xbox info from xbox_base_done.txt
+
+    Args:
+        output_path(str): output path
+        hadoop_fs_name(str): hdfs/afs fs_name
+        hadoop_fs_ugi(str): hdfs/afs fs_ugi
+        hadoop_home(str): hadoop home, default is "$HADOOP_HOME"
+
+    Returns:
+        [last_save_day, last_path, xbox_base_key]
+        last_save_day(int): day of saved model
+        last_path(str): model path
+        xbox_base_key(int): xbox key
+
+    Examples:
+        .. code-block:: python
+
+            from paddle.fluid.incubate.fleet.utils.fleet_util import FleetUtil
+            fleet_util = FleetUtil()
+            last_save_day, last_path, xbox_base_key = \
+                fleet_util.get_last_save_xbox_base("hdfs:/my/path", 20190722,
+                                                    88)
+
+    """
+
+    donefile_path = output_path + "/xbox_base_done.txt"
+    if not train_local:
+        if not client.is_file(donefile_path):
+            return [-1, -1, int(time.time())]
+        pre_content = client.cat(donefile_path)
+        last_dict = json.loads(pre_content.split("\n")[-1])
+        last_day = int(last_dict["input"].split("/")[-3])
+        last_path = "/".join(last_dict["input"].split("/")[:-1])
+        xbox_base_key = int(last_dict["key"])
+        return [last_day, last_path, xbox_base_key]
+    else:
+        file = Path(donefile_path)
+        if not file.is_file():
+            return [-1, -1, int(time.time())]
+        with open(donefile_path, encoding='utf-8') as f:
+            pre_content = f.read()
+        last_line = pre_content.split("\n")[-1]
+        if last_line == '':
+            last_line = pre_content.split("\n")[-2]
+        last_dict = json.loads(last_line)
+        last_day = int(last_dict["input"].split("/")[-3])
+        last_path = "/".join(last_dict["input"].split("/")[:-1])
+        xbox_base_key = int(last_dict["key"])
+        return [last_day, last_path, xbox_base_key]
+
+
+def get_last_save_xbox(output_path, train_local, client):
+    r"""
+    get last saved xbox info from xbox_patch_done.txt
+
+    Args:
+        output_path(str): output path
+        hadoop_fs_name(str): hdfs/afs fs_name
+        hadoop_fs_ugi(str): hdfs/afs fs_ugi
+        hadoop_home(str): hadoop home, default is "$HADOOP_HOME"
+
+    Returns:
+        [last_save_day, last_save_pass, last_path, xbox_base_key]
+        last_save_day(int): day of saved model
+        last_save_pass(int): pass id of saved
+        last_path(str): model path
+        xbox_base_key(int): xbox key
+
+    """
+    donefile_path = output_path + "/xbox_patch_done.txt"
+    if not train_local:
+        if not client.is_file(donefile_path):
+            return [-1, -1, "", int(time.time())]
+        logger.info("get_last_save_xbox donefile_path {} is file".format(
+            donefile_path))
+        pre_content = client.cat(donefile_path)
+        logger.info("get_last_save_xbox get a pre_content = ", pre_content)
+        last_dict = json.loads(pre_content.split("\n")[-1])
+        last_day = int(last_dict["input"].split("/")[-3])
+        last_pass = int(last_dict["input"].split("/")[-2].split("-")[-1])
+        last_path = "/".join(last_dict["input"].split("/")[:-1])
+        xbox_base_key = int(last_dict["key"])
+        return [last_day, last_pass, last_path, xbox_base_key]
+    else:
+        file = Path(donefile_path)
+        if not file.is_file():
+            return [-1, -1, "", int(time.time())]
+        with open(donefile_path, encoding='utf-8') as f:
+            pre_content = f.read()
+        last_line = pre_content.split("\n")[-1]
+        if last_line == '':
+            last_line = pre_content.split("\n")[-2]
+        last_dict = json.loads(last_line)
+        last_day = int(last_dict["input"].split("/")[-3])
+        last_pass = int(last_dict["input"].split("/")[-2].split("-")[-1])
+        last_path = "/".join(last_dict["input"].split("/")[:-1])
+        xbox_base_key = int(last_dict["key"])
+        return [last_day, last_pass, last_path, xbox_base_key]
+
+
+def save_xbox_model(output_path, day, pass_id, exe, feed_vars, target_vars,
+                    train_local, client):
+    if pass_id != -1:
+        mode = 1
+        suffix_name = "/%s/delta-%s/" % (day, pass_id)
+        model_path = output_path.rstrip("/") + suffix_name
+    else:
+        mode = 2
+        suffix_name = "/%s/base/" % day
+        model_path = output_path.rstrip("/") + suffix_name
+    fleet.save_inference_model(
+        exe,
+        model_path, [feed.name for feed in feed_vars],
+        target_vars,
+        mode=mode)
+    if not train_local:
+        client.upload("./dnn_plugin", model_path)
+
+
+def write_xbox_donefile(output_path,
+                        day,
+                        pass_id,
+                        model_base_key,
+                        train_local,
+                        client,
+                        donefile_name=None):
+    day = str(day)
+    pass_id = str(pass_id)
+    xbox_base_key = int(model_base_key)
+    mode = None
+
+    if pass_id != "-1":
+        mode = "patch"
+        suffix_name = "/%s/delta-%s/" % (day, pass_id)
+        model_path = output_path.rstrip("/") + suffix_name
+        if donefile_name is None:
+            donefile_name = "xbox_patch_done.txt"
+    else:
+        mode = "base"
+        suffix_name = "/%s/base/" % day
+        model_path = output_path.rstrip("/") + suffix_name
+        if donefile_name is None:
+            donefile_name = "xbox_base_done.txt"
+
+    if fleet.worker_index() == 0:
+        donefile_path = output_path + "/" + donefile_name
+        xbox_str = _get_xbox_str(
+            model_path=model_path, xbox_base_key=xbox_base_key, mode=mode)
+        if not train_local:
+            if client.is_file(donefile_path):
+                pre_content = client.cat(donefile_path)
+                last_line = pre_content.split("\n")[-1]
+                if last_line == '':
+                    last_line = pre_content.split("\n")[-2]
+                last_dict = json.loads(last_line)
+                last_day = last_dict["input"].split("/")[-3]
+                last_pass = last_dict["input"].split("/")[-2].split("-")[-1]
+                exist = False
+                if int(day) < int(last_day) or \
+                        int(day) == int(last_day) and \
+                        int(pass_id) <= int(last_pass):
+                    exist = True
+                if not exist:
+                    with open(donefile_name, "w") as f:
+                        f.write(pre_content + "\n")
+                        f.write(xbox_str + "\n")
+                    client.delete(donefile_path)
+                    client.upload(
+                        donefile_name,
+                        output_path,
+                        multi_processes=1,
+                        overwrite=False)
+                    logger.info("write %s/%s %s success" % \
+                                (day, pass_id, donefile_name))
+                else:
+                    logger.info("do not write %s because %s/%s already "
+                                "exists" % (donefile_name, day, pass_id))
+            else:
+                with open(donefile_name, "w") as f:
+                    f.write(xbox_str + "\n")
+                client.upload(
+                    donefile_name,
+                    output_path,
+                    multi_processes=1,
+                    overwrite=False)
+                logger.info("write %s/%s %s success" % \
+                            (day, pass_id, donefile_name))
+        else:
+            file = Path(donefile_path)
+            if not file.is_file():
+                with open(donefile_path, "w") as f:
+                    f.write(xbox_str + "\n")
+                return
+            with open(donefile_path, encoding='utf-8') as f:
+                pre_content = f.read()
+            exist = False
+            last_line = pre_content.split("\n")[-1]
+            if last_line == '':
+                last_line = pre_content.split("\n")[-2]
+            last_dict = json.loads(last_line, strict=False)
+            last_day = last_dict["input"].split("/")[-3]
+            last_pass = last_dict["input"].split("/")[-2].split("-")[-1]
+            if int(day) < int(last_day) or \
+                    int(day) == int(last_day) and \
+                    int(pass_id) <= int(last_pass):
+                exist = True
+            if not exist:
+                with open(donefile_path, "w") as f:
+                    f.write(pre_content + "\n")
+                    f.write(xbox_str + "\n")
+
+
+def _get_xbox_str(model_path, xbox_base_key, hadoop_fs_name=None,
+                  mode="patch"):
+    xbox_dict = collections.OrderedDict()
+    if mode == "base":
+        xbox_dict["id"] = str(xbox_base_key)
+    elif mode == "patch":
+        xbox_dict["id"] = str(int(time.time()))
+    else:
+        logger.info("warning: unknown mode %s, set it to patch" % mode)
+        mode = "patch"
+        xbox_dict["id"] = str(int(time.time()))
+    xbox_dict["key"] = str(xbox_base_key)
+    if model_path.startswith("hdfs:") or model_path.startswith("afs:"):
+        model_path = model_path[model_path.find(":") + 1:]
+    xbox_dict["input"] = ("" if hadoop_fs_name is None else hadoop_fs_name
+                          ) + model_path.rstrip("/") + "/000"
+    return json.dumps(xbox_dict)
