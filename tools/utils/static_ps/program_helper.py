@@ -95,6 +95,16 @@ def get_model(config):
     return static_model
 
 
+def get_two_model(config):
+    abs_dir = config['config_abs_dir']
+    sys.path.append(abs_dir)
+    from join_static_model import JoinStaticModel
+    join_model = JoinStaticModel(config)
+    from update_static_model import UpdateStaticModel
+    update_model = UpdateStaticModel(config)
+    return join_model, update_model
+
+
 def set_dump_config(program, dump_config):
     if dump_config.get("dump_fields_path") is not None:
         program._fleet_opt["dump_fields_path"] = dump_config.get(
