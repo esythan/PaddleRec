@@ -75,6 +75,7 @@ class Main(object):
         self.end_day = config.get("runner.end_day")
         self.save_model_path = self.config.get("runner.model_save_path")
         self.need_train_dump = self.config.get("runner.need_train_dump", False)
+        self.need_infer_dump = self.config.get("runner.need_infer_dump", False)
         if config.get("runner.fs_client.uri") is not None:
             self.hadoop_fs_name = config.get("runner.fs_client.uri", "")
             self.hadoop_fs_ugi = config.get("runner.fs_client.user",
@@ -194,15 +195,15 @@ class Main(object):
         dataset.set_pipe_command(self.pipe_command)
         dataset.load_into_memory()
 
-        shuffle_thread_num = config.get("runner.shuffle_thread_num", 12)
-        begin = time.time()
-        dataset.global_shuffle(fleet, shuffle_thread_num)
-        end = time.time()
-        logger.info('global_shuffle time cost: {}'.format((end - begin) /
-                                                          60.0))
-        shuffle_data_size = dataset.get_shuffle_data_size(fleet)
-        logger.info('after global_shuffle data_size: {}'.format(
-            shuffle_data_size))
+        # shuffle_thread_num = config.get("runner.shuffle_thread_num", 12)
+        # begin = time.time()
+        # dataset.global_shuffle(fleet, shuffle_thread_num)
+        # end = time.time()
+        # logger.info('global_shuffle time cost: {}'.format((end - begin) /
+        #                                                   60.0))
+        # shuffle_data_size = dataset.get_shuffle_data_size(fleet)
+        # logger.info('after global_shuffle data_size: {}'.format(
+        #     shuffle_data_size))
 
         return dataset
 
@@ -275,7 +276,7 @@ class Main(object):
             self.exe.run(self.join_model._startup_program)
         with paddle.static.scope_guard(update_scope):
             self.exe.run(self.update_model._startup_program)
-        fleet.init_worker()
+        # fleet.init_worker()
 
         self.online_intervals = get_online_pass_interval(
             self.split_interval, self.split_per_pass, False)
@@ -369,8 +370,8 @@ class Main(object):
                 logger.info("Day:{}, Pass: {}, Training Join Model Begin.".
                             format(day, pass_id))
                 begin = time.time()
-                self.dataset_train_loop(self.join_model, join_scope, dataset,
-                                        day, pass_id, self.need_train_dump)
+                # self.dataset_train_loop(self.join_model, join_scope, dataset,
+                #                         day, pass_id, self.need_train_dump)
                 end = time.time()
                 avg_cost = get_avg_cost_mins(end - begin)
                 get_max_cost_mins(end - begin)
@@ -545,7 +546,7 @@ class Main(object):
 
         with paddle.static.scope_guard(scope):
             self.exe.train_from_dataset(
-                program=model._train_program,
+                program=model._cost.block.program,
                 dataset=cur_dataset,
                 scope=scope,
                 fetch_list=fetch_vars,
@@ -586,7 +587,7 @@ class Main(object):
 
         with paddle.static.scope_guard(scope):
             self.exe.infer_from_dataset(
-                program=model._train_program,
+                program=model._cost.block.program,
                 dataset=cur_dataset,
                 scope=scope,
                 fetch_list=fetch_vars,

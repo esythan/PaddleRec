@@ -113,6 +113,7 @@ class JoinStaticModel():
             avg_cost = paddle.sum(x=cost)
             self._cost = avg_cost
             fetch_dict = {'cost': avg_cost, 'auc': auc}
+            self.metrics = fetch_dict
             return fetch_dict
 
     def infer_net(self, input):
