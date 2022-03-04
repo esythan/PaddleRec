@@ -3,10 +3,12 @@
 以下是本例的简要目录结构及说明： 
 
 ```
-├── data #数据
-    ├── beauty.txt #beauty数据集
+├── data #示例数据
+    ├── train #训练数据
+    ├── test #测试数据
 ├── readme.md #文档
 ├── config_bigdata.yaml # 全量数据配置
+├── config.yaml # demo数据配置
 ├── net.py # 模型核心组网
 ├── data_reader.py #数据读取程序
 ├── dygraph_model.py # 构建动态图
@@ -21,6 +23,7 @@
 - [模型简介](#模型简介)
 - [数据准备](#数据准备)
 - [运行环境](#运行环境)
+- [快速开始](#快速开始)
 - [模型组网](#模型组网)
 - [效果复现](#效果复现)
 - [进阶使用](#进阶使用)
@@ -43,6 +46,18 @@ PaddlePaddle>=2.0
 
 python 3.7
 
+## 快速开始
+本文提供了样例数据可以供您快速体验，在任意目录下均可执行。在BERT4Rec模型目录的快速执行命令如下： 
+```bash
+# 进入模型目录
+# cd models/rank/bert4rec # 在任意目录均可运行
+# 动态图训练
+python -u ../../../tools/trainer.py -m config.yaml # 全量数据运行config_bigdata.yaml 
+# 动态图预测
+python -u ../../../tools/infer.py -m config.yaml 
+``` 
+
+
 ## 模型组网
 在BERT4Rec之前，SASRec已经将self-attention应用在了序列推荐任务中。
 
@@ -59,29 +74,28 @@ python 3.7
 在测试的时候，我们只需要mask掉序列最后的物品，并取出模型最后一步的representation出来，那么就将训练好的模型成功应用在Next-item Prediction任务上。
 
 ## 效果复现
+
 | 模型 | HR@10 | NDCG@10 | MRR | epoch_num| Time of each epoch |
 | :------| :------ |:------ | :------ | :------| :------ | 
-| BERT4Rec | 0.306 | 0.187 | 0.170 | 50 | 约2小时 |
+| BERT4Rec | 0.305 | 0.184 | 0.166 | 50 | 约2小时 |
 
-本文提供了beauty数据集可以供您快速体验及其复现。在BERT4Rec模型目录的快速执行命令如下： 
+1. 确认您当前所在目录为 `PaddleRec/models/rank/bert4rec`
+2. 进入 `PaddleRec/datasets/Beauty` 目录下，执行该脚本，会从国内源的服务器上下载我们预处理完成的 Beauty 全量数据集，并解压到指定文件夹。
+``` bash
+cd ../../../datasets/Beauty
+sh run.sh
+``` 
+3. 切回模型目录,执行命令运行全量数据
 
 ```bash
 # 进入模型目录
-# cd models/rank/bert4rec # 在任意目录均可运行
-# 数据增强与候选集生成
-python -u data_augment_candi_gen.py 
 # 动态图训练
 python -u ../../../tools/trainer.py -m config_bigdata.yaml 
 # 动态图预测
 python -u ../../../tools/infer.py -m config_bigdata.yaml 
-
-# 静态图训练
-
-# 静态图预测
 
 ``` 
 
 ## 进阶使用
   
 ## FAQ
-

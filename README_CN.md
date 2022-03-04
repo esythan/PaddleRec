@@ -30,7 +30,7 @@
 
 - 源于飞桨生态的搜索推荐模型 **一站式开箱即用工具** 
 - 适合初学者，开发者，研究者的推荐系统全流程解决方案
-- 包含内容理解、匹配、召回、排序、 多任务、重排序等多个任务的完整推荐搜索算法库
+- 包含内容理解、匹配、召回、排序、 多任务、重排序等多个任务的完整推荐搜索算法库。[支持模型列表](#支持模型列表)
 
 <h2 align="center">快速使用</h2>
 
@@ -107,6 +107,8 @@ python -u tools/static_trainer.py -m models/rank/dnn/config.yaml #  静态图训
 ### 致谢
 * [外部开发者贡献列表](contributor.md)
 
+### 支持模型列表
+
 <h2 align="center">支持模型列表</h2>
 
 
@@ -165,6 +167,7 @@ python -u tools/static_trainer.py -m models/rank/dnn/config.yaml #  静态图训
   |  多任务  |                  [MMOE](models/multitask/mmoe/)([文档](https://paddlerec.readthedocs.io/en/latest/models/multitask/mmoe.html))                   |  [Python CPU/GPU](https://aistudio.baidu.com/aistudio/projectdetail/3238934)  |       ✓     |     ✓     | >=2.1.0 | [KDD 2018][Modeling Task Relationships in Multi-task Learning with Multi-gate Mixture-of-Experts](https://dl.acm.org/doi/abs/10.1145/3219819.3220007)                                                       |
   |  多任务  |           [ShareBottom](models/multitask/share_bottom/)([文档](https://paddlerec.readthedocs.io/en/latest/models/multitask/share_bottom.html))           |  [Python CPU/GPU](https://aistudio.baidu.com/aistudio/projectdetail/3238943)  |       ✓     |     ✓     | >=2.1.0 | [1998][Multitask learning](http://reports-archive.adm.cs.cmu.edu/anon/1997/CMU-CS-97-203.pdf)                                                                                                               |
   |  多任务  |           [Maml](models/multitask/maml/)([文档](https://paddlerec.readthedocs.io/en/latest/models/multitask/maml.html))           |  [Python CPU/GPU](https://aistudio.baidu.com/aistudio/projectdetail/3238412)  |      x      |     x     | >=2.1.0 | [PMLR 2017][Model-agnostic meta-learning for fast adaptation of deep networks](https://arxiv.org/pdf/1703.03400.pdf)                                                                                                               |
+  |  多任务  |           [DSelect_K](models/multitask/dselect_k/)([文档](https://paddlerec.readthedocs.io/en/latest/models/multitask/dselect_k.html))           |  -  |      x      |     x     | >=2.1.0 | [NeurIPS 2021][DSelect-k: Differentiable Selection in the Mixture of Experts with Applications to Multi-Task Learning](https://arxiv.org/pdf/2106.03760v3.pdf)                                                                                                               |
   |  重排序  |                [Listwise](https://github.com/PaddlePaddle/PaddleRec/tree/release/1.8.5/models/rerank/listwise/)                |  -  |       ✓     |     x     | [1.8.5](https://github.com/PaddlePaddle/PaddleRec/tree/release/1.8.5) | [2019][Sequential Evaluation and Generation Framework for Combinatorial Recommender System](https://arxiv.org/pdf/1902.00245.pdf)                                                                           |
 
 

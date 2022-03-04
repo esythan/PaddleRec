@@ -25,7 +25,7 @@
 
 - A quick start tool of search & recommendation algorithm based on [PaddlePaddle](https://www.paddlepaddle.org.cn/documentation/docs/en/beginners_guide/index_en.html)
 - A complete solution of recommendation system for beginners, developers and researchers.
-- Recommendation algorithm library including content-understanding, match, recall, rank, multi-task, re-rank etc.
+- Recommendation algorithm library including content-understanding, match, recall, rank, multi-task, re-rank etc.[Support model list](#Support_Model_List)
 
 <h2 align="center">Getting Started</h2>
 
@@ -73,31 +73,33 @@ python -u tools/static_trainer.py -m models/rank/dnn/config.yaml #  Training wit
 
 ### Background
 * [Recommendation System](doc/rec_background.md)
-* [Distributed deep learning](doc/ps_background.md)
+* [Distributed deep Learning](doc/ps_background.md)
 
-### Introductory tutorial
-* [PaddleRec function introduction](doc/introduction.md)
+### Introductory Tutorial
+* [PaddleRec Function Introduction](doc/introduction.md)
 * [Dygraph Train](doc/dygraph_mode.md)
 * [Static Train](doc/static_mode.md)
 * [Distributed Train](doc/fleet_mode.md)
 
 
-### Advanced tutorial
+### Advanced Tutorial
+* [Submit Specification](doc/contribute.md)
 * [Custom Reader](doc/custom_reader.md)
 * [Custom Model](doc/model_develop.md)
-* [Configuration description of yaml](doc/yaml.md)
-* [Training visualization](doc/visualization.md)
+* [Configuration Description of Yaml](doc/yaml.md)
+* [Training Visualization](doc/visualization.md)
 * [Serving](doc/serving.md)
-* [Python inference](doc/inference.md)
+* [Python Inference](doc/inference.md)
 * [Benchmark](doc/benchmark.md)
 
 ### FAQ
 * [Common Problem FAQ](doc/faq.md)
 
 ### Acknowledgements
-* [Contributions from external developer](contributor.md)
+* [Contributions From External Developer](contributor.md)
 
-<h2 align="center">Support model list</h2>
+#### Support_Model_List
+<h2 align="center">Support Model List</h2>
 
 
   |         Type          |                                 Algorithm                                 | Online Environment | Parameter-Server | Multi-GPU | version | Paper                                                                                                                                                                                                       |
@@ -155,6 +157,7 @@ python -u tools/static_trainer.py -m models/rank/dnn/config.yaml #  Training wit
   |      Multi-Task       |                  [MMOE](models/multitask/mmoe/)<br>([doc](https://paddlerec.readthedocs.io/en/latest/models/multitask/mmoe.html))                   |  [Python CPU/GPU](https://aistudio.baidu.com/aistudio/projectdetail/3238934)  |         ✓         |     ✓     |      >=2.1.0     | [KDD 2018][Modeling Task Relationships in Multi-task Learning with Multi-gate Mixture-of-Experts](https://dl.acm.org/doi/abs/10.1145/3219819.3220007)                                                       |
   |      Multi-Task       |           [ShareBottom](models/multitask/share_bottom/)<br>([doc](https://paddlerec.readthedocs.io/en/latest/models/multitask/share_bottom.html))           |  [Python CPU/GPU](https://aistudio.baidu.com/aistudio/projectdetail/3238943)  |         ✓         |     ✓     |  >=2.1.0 | [1998][Multitask learning](http://reports-archive.adm.cs.cmu.edu/anon/1997/CMU-CS-97-203.pdf)                                                                                                               |
   |      Multi-Task       |           [Maml](models/multitask/maml/)<br>([doc](https://paddlerec.readthedocs.io/en/latest/models/multitask/maml.html))           |  [Python CPU/GPU](https://aistudio.baidu.com/aistudio/projectdetail/3238412)  |    x      |     x     | >=2.1.0 | [PMLR 2017][Model-agnostic meta-learning for fast adaptation of deep networks](https://arxiv.org/pdf/1703.03400.pdf)                                                                                                               |
+  |  Multi-Task  |           [DSelect_K](models/multitask/dselect_k/)<br>([doc](https://paddlerec.readthedocs.io/en/latest/models/multitask/dselect_k.html))           |  -  |      x      |     x     | >=2.1.0 | [NeurIPS 2021][DSelect-k: Differentiable Selection in the Mixture of Experts with Applications to Multi-Task Learning](https://arxiv.org/pdf/2106.03760v3.pdf)                                                                                                               |
   |        Re-Rank        |                [Listwise](https://github.com/PaddlePaddle/PaddleRec/tree/release/1.8.5/models/rerank/listwise/)                |  -  |         ✓         |     x     |  [1.8.5](https://github.com/PaddlePaddle/PaddleRec/tree/release/1.8.5) | [2019][Sequential Evaluation and Generation Framework for Combinatorial Recommender System](https://arxiv.org/pdf/1902.00245.pdf)                                                                           |
 
 <h2 align="center">Community</h2>
