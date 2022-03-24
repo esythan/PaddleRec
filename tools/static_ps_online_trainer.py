@@ -409,6 +409,13 @@ class Main(object):
                                 monitor_data=metric_str)
                 fleet.barrier_worker()
 
+            logger.info("shrink table")
+            begin = time.time()
+            fleet.shrink()
+            end = time.time()
+            logger.info("shrink table done, cost %s min" % (
+                (end - begin) / 60.0))
+
             if fleet.is_first_worker():
                 last_base_day, last_base_path, last_base_key = get_last_save_xbox_base(
                     self.save_model_path, self.hadoop_client)
@@ -420,7 +427,6 @@ class Main(object):
                     logger.info("batch model/base xbox model exists")
                 else:
                     xbox_base_key = int(time.time())
-                    fleet.shrink()
                     save_xbox_model(self.save_model_path, next_day, -1,
                                     self.exe, self.inference_feed_vars,
                                     self.inference_target_var,

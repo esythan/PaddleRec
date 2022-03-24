@@ -354,7 +354,8 @@ def get_last_save_xbox(output_path, client):
         logger.info("get_last_save_xbox donefile_path {} is file".format(
             donefile_path))
         pre_content = client.cat(donefile_path)
-        logger.info("get_last_save_xbox get a pre_content = ", pre_content)
+        logger.info("get_last_save_xbox get a pre_content = {}".format(
+            pre_content))
         last_dict = json.loads(pre_content.split("\n")[-1])
         last_day = int(last_dict["input"].split("/")[-3])
         last_pass = int(last_dict["input"].split("/")[-2].split("-")[-1])
