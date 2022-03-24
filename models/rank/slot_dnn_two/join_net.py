@@ -25,7 +25,8 @@ class JoinDNNLayer(nn.Layer):
                  emb_dim,
                  slot_num,
                  layer_sizes,
-                 sync_mode=None):
+                 sync_mode=None,
+                 adjust_ins_weight_config=None):
         super(JoinDNNLayer, self).__init__()
         self.sync_mode = sync_mode
         self.dict_dim = dict_dim
@@ -33,6 +34,12 @@ class JoinDNNLayer(nn.Layer):
         self.slot_num = slot_num
         self.layer_sizes = layer_sizes
         self._init_range = 0.2
+        self.adjust_ins_weight_config = adjust_ins_weight_config
+        self.need_adjust = adjust_ins_weight_config.get("need_adjust")
+        self.nid_slot = adjust_ins_weight_config.get("nid_slot")
+        self.nid_adjw_threshold = adjust_ins_weight_config.get(
+            "nid_adjw_threshold")
+        self.nid_adjw_ratio = adjust_ins_weight_config.get("nid_adjw_ratio")
 
         self.entry = paddle.distributed.ShowClickEntry("show", "click")
 
@@ -47,7 +54,13 @@ class JoinDNNLayer(nn.Layer):
                 in_features=sizes[i],
                 out_features=sizes[i + 1],
                 weight_attr=paddle.ParamAttr(
+                    learning_rate=1.0,
+                    initializer=paddle.nn.initializer.Normal(std=scales[i])),
+                # initializer=paddle.nn.initializer.Constant(value=0.0001)),
+                bias_attr=paddle.ParamAttr(
+                    learning_rate=1.0,
                     initializer=paddle.nn.initializer.Normal(std=scales[i])))
+            # initializer=paddle.nn.initializer.Constant(value=0.0001)))
             self.add_sublayer('linear_%d' % i, linear)
             self._mlp_layers.append(linear)
             if acts[i] == 'relu':
@@ -55,7 +68,7 @@ class JoinDNNLayer(nn.Layer):
                 self.add_sublayer('act_%d' % i, act)
                 self._mlp_layers.append(act)
 
-    def forward(self, show, click, slot_inputs):
+    def forward(self, show, click, ins_weight, slot_inputs):
         self.all_vars = []
         bows = []
         cvms = []
@@ -73,6 +86,28 @@ class JoinDNNLayer(nn.Layer):
                 param_attr=paddle.ParamAttr(name="embedding"))
             emb.stop_gradient = True
             self.inference_feed_vars.append(emb)
+
+            if self.need_adjust and s_input.name == self.nid_slot:
+                # paddle.fluid.layers.Print(emb, message="nid emb")
+                nid_show, _ = paddle.split(
+                    emb, num_or_sections=[1, self.emb_dim - 1], axis=-1)
+                # paddle.fluid.layers.Print(nid_show, message="nid show")
+                init_weight = fluid.layers.fill_constant_batch_size_like(
+                    input=ins_weight,
+                    shape=[-1, 1],
+                    dtype="float32",
+                    value=1.0)
+                weight = paddle.log(
+                    math.e + (self.nid_adjw_threshold - nid_show) /
+                    self.nid_adjw_threshold * self.nid_adjw_ratio)
+                # paddle.fluid.layers.Print(weight, message="ins weight in net")
+                weight = paddle.where(nid_show >= 0 and
+                                      nid_show < self.nid_adjw_threshold,
+                                      weight, init_weight)
+                ins_weight = paddle.where(weight > ins_weight, weight,
+                                          ins_weight)
+                # paddle.fluid.layers.Print(ins_weight, message="adjust ins weight in net")
+            ins_weight.stop_gradient = True
 
             bow = paddle.fluid.layers.sequence_pool(input=emb, pool_type='sum')
             bow.stop_gradient = True
@@ -99,11 +134,13 @@ class JoinDNNLayer(nn.Layer):
                 "batch_square": 1e4
             })
         self.all_vars.append(y_dnn)
+        # y_dnn = paddle.fluid.layers.Print(y_dnn, summarize=-1)
 
         for n_layer in self._mlp_layers:
             y_dnn = n_layer(y_dnn)
+            # y_dnn = paddle.fluid.layers.Print(y_dnn, summarize=-1)
             self.all_vars.append(y_dnn)
 
         self.predict = F.sigmoid(paddle.clip(y_dnn, min=-15.0, max=15.0))
         self.all_vars.append(self.predict)
-        return self.predict
+        return self.predict, ins_weight

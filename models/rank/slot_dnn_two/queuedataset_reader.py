@@ -79,7 +79,7 @@ class Reader(fleet.MultiSlotDataGenerator):
                 self.visit[slot] = False
 
         # add show
-        output = [("0", [1])] + output
+        output = [("ins_weight", [1]), ("0", [1])] + output
         return output
 
     def generate_sample(self, line):

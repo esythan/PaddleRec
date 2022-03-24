@@ -1,4 +1,17 @@
-# Copyright (c) 2020 PaddlePaddle Authors. All Rights Reserved.
+# Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -192,18 +205,19 @@ class Main(object):
         self.pipe_command = "{} {} {}".format(
             self.config.get("runner.pipe_command"),
             config.get("yaml_path"), get_utils_file_path())
+        # self.pipe_command = self.config.get("runner.pipe_command")
         dataset.set_pipe_command(self.pipe_command)
         dataset.load_into_memory()
 
-        # shuffle_thread_num = config.get("runner.shuffle_thread_num", 12)
-        # begin = time.time()
-        # dataset.global_shuffle(fleet, shuffle_thread_num)
-        # end = time.time()
-        # logger.info('global_shuffle time cost: {}'.format((end - begin) /
-        #                                                   60.0))
-        # shuffle_data_size = dataset.get_shuffle_data_size(fleet)
-        # logger.info('after global_shuffle data_size: {}'.format(
-        #     shuffle_data_size))
+        shuffle_thread_num = config.get("runner.shuffle_thread_num", 12)
+        begin = time.time()
+        dataset.global_shuffle(fleet, shuffle_thread_num)
+        end = time.time()
+        logger.info('global_shuffle time cost: {}'.format((end - begin) /
+                                                          60.0))
+        shuffle_data_size = dataset.get_shuffle_data_size(fleet)
+        logger.info('after global_shuffle data_size: {}'.format(
+            shuffle_data_size))
 
         return dataset
 
@@ -245,13 +259,6 @@ class Main(object):
         self.exe = paddle.static.Executor(place)
         join_scope = paddle.static.Scope()
         update_scope = paddle.static.Scope()
-        with paddle.static.program_guard(self.join_model._train_program,
-                                         self.join_model._startup_program):
-            paddle.fluid.framework.switch_main_program(
-                self.join_model._cost.block.program)
-            with open("./{}_worker_join_default_main_program.prototxt".format(
-                    fleet.worker_index()), 'w+') as f:
-                f.write(str(paddle.static.default_main_program()))
 
         with open("./{}_worker_join_main_program.prototxt".format(
                 fleet.worker_index()), 'w+') as f:
@@ -265,18 +272,12 @@ class Main(object):
         with open("./{}_worker_update_startup_program.prototxt".format(
                 fleet.worker_index()), 'w+') as f:
             f.write(str(self.update_model._startup_program))
-        with open("./{}_worker_main_program.prototxt".format(
-                fleet.worker_index()), 'w+') as f:
-            f.write(str(paddle.static.default_main_program()))
-        with open("./{}_worker_startup_program.prototxt".format(
-                fleet.worker_index()), 'w+') as f:
-            f.write(str(paddle.static.default_startup_program()))
 
         with paddle.static.scope_guard(join_scope):
             self.exe.run(self.join_model._startup_program)
         with paddle.static.scope_guard(update_scope):
             self.exe.run(self.update_model._startup_program)
-        # fleet.init_worker()
+        fleet.init_worker([join_scope, update_scope])
 
         self.online_intervals = get_online_pass_interval(
             self.split_interval, self.split_per_pass, False)
@@ -299,7 +300,7 @@ class Main(object):
             logger.info("training a new day {}, end_day = {}".format(
                 day, self.end_day))
             if last_day != -1 and int(day) < last_day:
-                day = int(get_next_day(day))
+                day = get_next_day(day)
                 continue
             # base_model_saved = False
             for pass_id in range(1, 1 + len(self.online_intervals)):
@@ -370,8 +371,8 @@ class Main(object):
                 logger.info("Day:{}, Pass: {}, Training Join Model Begin.".
                             format(day, pass_id))
                 begin = time.time()
-                # self.dataset_train_loop(self.join_model, join_scope, dataset,
-                #                         day, pass_id, self.need_train_dump)
+                self.dataset_train_loop(self.join_model, join_scope, dataset,
+                                        day, pass_id, self.need_train_dump)
                 end = time.time()
                 avg_cost = get_avg_cost_mins(end - begin)
                 get_max_cost_mins(end - begin)
@@ -390,6 +391,30 @@ class Main(object):
                               self.join_metric_types)
                 end = time.time()
                 join_metric_cost = (end - begin) / 60
+
+                if fleet.is_first_worker():
+                    if pass_id % self.save_delta_frequency == 0:
+                        last_xbox_day, last_xbox_pass, last_xbox_path, _ = get_last_save_xbox(
+                            self.save_model_path, self.hadoop_client)
+                        if int(day) < last_xbox_day or int(
+                                day) == last_xbox_day and int(
+                                    pass_id) <= last_xbox_pass:
+                            log_str = "delta model exists"
+                            logger.info(log_str)
+                        else:
+                            save_xbox_model(self.save_model_path, day, pass_id,
+                                            self.exe, self.inference_feed_vars,
+                                            self.inference_target_var,
+                                            self.hadoop_client)  # 1 delta
+                            write_xbox_donefile(
+                                output_path=self.save_model_path,
+                                day=day,
+                                pass_id=pass_id,
+                                xbox_base_key=xbox_base_key,
+                                client=self.hadoop_client,
+                                hadoop_fs_name=self.hadoop_fs_name,
+                                monitor_data=metric_str)
+                fleet.barrier_worker()
 
                 if self.need_infer_dump:
                     prepare_data_start_time = time.time()
@@ -451,7 +476,8 @@ class Main(object):
                 logger.info(log_str)
 
                 if fleet.is_first_worker():
-                    if pass_id % self.checkpoint_per_pass == 0:
+                    if pass_id % self.checkpoint_per_pass == 0 and pass_id != len(
+                            self.online_intervals):
                         save_model(self.exe, self.save_model_path, day,
                                    pass_id)
                         write_model_donefile(
@@ -460,28 +486,14 @@ class Main(object):
                             pass_id=pass_id,
                             xbox_base_key=xbox_base_key,
                             client=self.hadoop_client)
-                    if pass_id % self.save_delta_frequency == 0:
-                        last_xbox_day, last_xbox_pass, last_xbox_path, _ = get_last_save_xbox(
-                            self.save_model_path, self.hadoop_client)
-                        if int(day) < last_xbox_day or int(
-                                day) == last_xbox_day and int(
-                                    pass_id) <= last_xbox_pass:
-                            log_str = "delta model exists"
-                            logger.info(log_str)
-                        else:
-                            save_xbox_model(self.save_model_path, day, pass_id,
-                                            self.exe, self.inference_feed_vars,
-                                            self.inference_target_var,
-                                            self.hadoop_client)  # 1 delta
-                            write_xbox_donefile(
-                                output_path=self.save_model_path,
-                                day=day,
-                                pass_id=pass_id,
-                                xbox_base_key=xbox_base_key,
-                                client=self.hadoop_client,
-                                hadoop_fs_name=self.hadoop_fs_name,
-                                monitor_data=metric_str)
                 fleet.barrier_worker()
+
+            logger.info("shrink table")
+            begin = time.time()
+            fleet.shrink()
+            end = time.time()
+            logger.info("shrink table done, cost %s min" % (
+                (end - begin) / 60.0))
 
             if fleet.is_first_worker():
                 last_base_day, last_base_path, last_base_key = get_last_save_xbox_base(
@@ -494,7 +506,6 @@ class Main(object):
                     logger.info("batch model/base xbox model exists")
                 else:
                     xbox_base_key = int(time.time())
-                    fleet.shrink()
                     save_xbox_model(self.save_model_path, next_day, -1,
                                     self.exe, self.inference_feed_vars,
                                     self.inference_target_var,

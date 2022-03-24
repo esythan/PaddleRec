@@ -43,6 +43,16 @@ class UpdateStaticModel():
             self.config.get("hyper_parameters.optimizer.learning_rate"))
         self.layer_sizes = self.config.get(
             "hyper_parameters.update_layer_sizes")
+        self.adjust_ins_weight_config = {
+            "need_adjust": self.config.get(
+                "hyper_parameters.adjust_ins_weight.need_adjust", False),
+            "nid_slot": self.config.get(
+                "hyper_parameters.adjust_ins_weight.nid_slot", "0"),
+            "nid_adjw_threshold": self.config.get(
+                "hyper_parameters.adjust_ins_weight.nid_adjw_threshold", 1000),
+            "nid_adjw_ratio": self.config.get(
+                "hyper_parameters.adjust_ins_weight.nid_adjw_ratio", 20)
+        }
 
     def create_feeds(self, is_infer=False):
         with paddle.static.program_guard(self._train_program,
@@ -57,26 +67,37 @@ class UpdateStaticModel():
                 name="show", shape=[None, 1], dtype="int64", lod_level=1)
             label = paddle.static.data(
                 name="click", shape=[None, 1], dtype="int64", lod_level=1)
+            ins_weight = paddle.static.data(
+                name="ins_weight",
+                shape=[None, 1],
+                dtype="float32",
+                lod_level=1)
 
-            feeds_list = [show, label] + slot_ids
+            feeds_list = [ins_weight, show, label] + slot_ids
             return feeds_list
 
     def net(self, input, is_infer=False):
         with paddle.static.program_guard(self._train_program,
                                          self._startup_program):
-            self.show_input = input[0]
-            self.label_input = input[1]
-            self.slot_inputs = input[2:]
+            self.ins_weight = input[0]
+            self.show_input = input[1]
+            self.label_input = input[2]
+            self.slot_inputs = input[3:]
+            # paddle.fluid.layers.Print(self.ins_weight, message="origin ins weight update")
 
             dnn_model = UpdateDNNLayer(
                 self.dict_dim,
                 self.emb_dim,
                 self.slot_num,
                 self.layer_sizes,
-                sync_mode=self.sync_mode)
+                sync_mode=self.sync_mode,
+                adjust_ins_weight_config=self.adjust_ins_weight_config)
 
-            self.predict = dnn_model.forward(self.show_input, self.label_input,
-                                             self.slot_inputs)
+            self.predict, adjust_ins_weight = dnn_model.forward(
+                self.show_input, self.label_input, self.ins_weight,
+                self.slot_inputs)
+
+            # paddle.fluid.layers.Print(adjust_ins_weight, message="adjust ins weight update")
 
             # self.all_vars = input + dnn_model.all_vars
             self.all_vars = dnn_model.all_vars
@@ -111,9 +132,17 @@ class UpdateStaticModel():
             cost = paddle.nn.functional.log_loss(
                 input=self.predict,
                 label=paddle.cast(self.label_input, "float32"))
-            avg_cost = paddle.sum(x=cost)
+            # cost = paddle.fluid.layers.Print(cost, summarize=-1)
+            cost = paddle.multiply(cost, adjust_ins_weight)
+            # cost = paddle.fluid.layers.Print(cost, summarize=-1)
+            avg_cost = paddle.mean(x=cost)
+            # avg_cost = paddle.fluid.layers.Print(avg_cost, summarize=-1)
             self._cost = avg_cost
-            fetch_dict = {'cost': avg_cost, 'auc': auc}
+            fetch_dict = {
+                'predict': self.predict,
+                'cost': avg_cost,
+                'auc': auc
+            }
             self.metrics = fetch_dict
             return fetch_dict
 
