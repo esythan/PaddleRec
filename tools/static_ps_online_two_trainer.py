@@ -205,7 +205,7 @@ class Main(object):
         self.pipe_command = "{} {} {}".format(
             self.config.get("runner.pipe_command"),
             config.get("yaml_path"), get_utils_file_path())
-        # self.pipe_command = self.config.get("runner.pipe_command")
+        self.pipe_command = self.config.get("runner.pipe_command")
         dataset.set_pipe_command(self.pipe_command)
         dataset.load_into_memory()
 
@@ -501,8 +501,8 @@ class Main(object):
                 logger.info(
                     "one epoch finishes, get_last_save_xbox, last_base_day = {}, last_base_path = {}, last_base_key = {}".
                     format(last_base_day, last_base_path, last_base_key))
-                next_day = int(get_next_day(day))
-                if next_day <= last_base_day:
+                next_day = get_next_day(day)
+                if int(next_day) <= last_base_day:
                     logger.info("batch model/base xbox model exists")
                 else:
                     xbox_base_key = int(time.time())
