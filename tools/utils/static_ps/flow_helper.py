@@ -118,7 +118,7 @@ def load_model(model_path, mode, client):
         if os.path.exists(local_path):
             shutil.rmtree(local_path)
         os.mkdir(local_path)
-        client.download(model_path + "/dnn_plugin", local_path)
+        client.download(model_path + "/dnn_plugin/", local_path)
     fleet.load_model(model_path, mode)
 
 
