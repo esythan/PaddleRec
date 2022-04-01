@@ -1,5 +1,5 @@
 runner:
-  train_data_dir: "./data"
+  train_data_dir: "./data_demo"
   # train_data_dir: "afs:/xxx"
   use_gpu: False
   train_batch_size: 32
@@ -12,14 +12,15 @@ runner:
   train_thread_num: 3
   shuffle_thread_num: 12
   reader_type: "InMemoryDataset"  # DataLoader / QueueDataset / RecDataset
-  pipe_command: "python3.7 queuedataset_reader.py"
+  # pipe_command: "python3.7 queuedataset_reader.py"
+  pipe_command: "cat"
   dataset_debug: False
   # data_donefile: "data.done"
   data_sleep_second: 1
   sync_mode: "async"
 
-  split_interval: 30
-  split_per_pass: 2
+  split_interval: 720
+  split_per_pass: 1
   start_day: "20190720"
   end_day: "20190722"
   infer_batch_size: 32
@@ -46,11 +47,10 @@ hyper_parameters:
     strategy: async
   # user-defined <key, value> pairs
   dict_dim : 1000000
-  emb_dim : 9
-  sparse_feature_dim: 9
-  slot_num: 3
-  join_layer_sizes: [512, 256, 128, 128]
-  update_layer_sizes: [512, 256, 128]
+  emb_dim : 11
+  slot_num: 408  
+  join_layer_sizes: [511, 255, 255, 127, 127, 127, 127]
+  update_layer_sizes: [511, 255, 127, 127, 127]
   distributed_embedding: 0
   # adam_d2sum: False
 
