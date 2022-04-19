@@ -205,7 +205,7 @@ class Main(object):
         self.pipe_command = "{} {} {}".format(
             self.config.get("runner.pipe_command"),
             config.get("yaml_path"), get_utils_file_path())
-        # self.pipe_command = self.config.get("runner.pipe_command")
+        self.pipe_command = self.config.get("runner.pipe_command")
         dataset.set_pipe_command(self.pipe_command)
         dataset.load_into_memory()
 

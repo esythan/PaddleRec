@@ -72,7 +72,7 @@ def get_strategy(config):
         }
     print("strategy:", strategy.fs_client_param)
 
-    strategy.adam_d2sum = config.get("hyper_parameters.adam_d2sum", True)
+    strategy.adam_d2sum = config.get("hyper_parameters.adam_d2sum", False)
     table_config = {}
     for x in config:
         if x.startswith("table_parameters"):

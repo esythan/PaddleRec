@@ -52,7 +52,12 @@ hyper_parameters:
   join_layer_sizes: [511, 255, 255, 127, 127, 127, 127]
   update_layer_sizes: [511, 255, 127, 127, 127]
   distributed_embedding: 0
-  # adam_d2sum: False
+  adam_d2sum: True
+  adjust_ins_weight:
+   need_adjust: True
+   nid_slot: "3"
+   nid_adjw_threshold: 1000
+   nid_adjw_ratio: 20
 
 table_parameters:
   embedding:
