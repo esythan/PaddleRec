@@ -142,9 +142,7 @@ class Main(object):
 
         self.exe.run(paddle.static.default_startup_program())
         fleet.init_worker()
-        if fleet.is_first_worker():
-            fleet.load_model(init_model_path, mode=0)
-        fleet.barrier_worker()
+        fleet.load_model(init_model_path, mode=0)
 
         logger.info("Prepare Dataset Begin.")
         prepare_data_start_time = time.time()

@@ -113,13 +113,18 @@ def get_online_pass_interval(split_interval, split_per_pass,
 
 
 def load_model(model_path, mode, client):
-    if not is_local(model_path) and (mode == 1 or mode == 2):
-        local_path = "./dnn_plugin"
-        if os.path.exists(local_path):
-            shutil.rmtree(local_path)
-        os.mkdir(local_path)
-        client.download(model_path + "/dnn_plugin/", local_path)
     fleet.load_model(model_path, mode)
+
+
+def load_inference_model(model_path, mode, client):
+    local_path = "./dnn_plugin"
+    if os.path.exists(local_path):
+        shutil.rmtree(local_path)
+    os.mkdir(local_path)
+    if fleet.is_first_worker():
+        client.download(model_path + "/dnn_plugin/", local_path)
+    fleet.barrier_worker()
+    fleet.load_inference_model(model_path, mode)
 
 
 def save_model(exe, output_path, day, pass_id, mode=0):
@@ -181,7 +186,7 @@ def write_model_donefile(output_path,
         suffix_name = "/%s/0/" % day
         model_path = output_path.rstrip("/") + suffix_name
 
-    if fleet.worker_index() == 0:
+    if fleet.is_first_worker():
         donefile_path = output_path + "/" + donefile_name
         content = "%s\t%lu\t%s\t%s\t%d" % (day, xbox_base_key, \
                                             model_path, pass_id, 0)
@@ -246,6 +251,7 @@ def write_model_donefile(output_path,
             else:
                 logger.info("not write %s because %s/%s already "
                             "exists" % (donefile_name, day, pass_id))
+    fleet.barrier_worker()
 
 
 def get_last_save_model(output_path, client):
@@ -404,8 +410,9 @@ def save_xbox_model(output_path, day, pass_id, exe, feed_vars, target_vars,
         model_path, [feed.name for feed in feed_vars],
         target_vars,
         mode=mode)
-    if not is_local(model_path):
+    if not is_local(model_path) and fleet.is_first_worker():
         client.upload("./dnn_plugin", model_path)
+    fleet.barrier_worker()
 
 
 def write_xbox_donefile(output_path,
@@ -445,7 +452,7 @@ def write_xbox_donefile(output_path,
         if donefile_name is None:
             donefile_name = "xbox_base_done.txt"
 
-    if fleet.worker_index() == 0:
+    if fleet.is_first_worker():
         donefile_path = output_path + "/" + donefile_name
         xbox_str = _get_xbox_str(
             model_path=model_path,
@@ -513,6 +520,7 @@ def write_xbox_donefile(output_path,
                 with open(donefile_path, "w") as f:
                     f.write(pre_content + "\n")
                     f.write(xbox_str + "\n")
+    fleet.barrier_worker()
 
 
 def _get_xbox_str(model_path,
@@ -534,6 +542,6 @@ def _get_xbox_str(model_path,
         hadoop_fs_name = ""
     else:
         model_path = model_path[model_path.find(":") + 1:]
-    xbox_dict["input"] = hadoop_fs_name + model_path.rstrip("/") + "/001"
+    xbox_dict["input"] = hadoop_fs_name + model_path.rstrip("/") + "/000"
     xbox_dict["monitor_data"] = monitor_data
     return json.dumps(xbox_dict)

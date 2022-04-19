@@ -163,7 +163,7 @@ class Main(object):
             self.train_result_dict["speed"].append(epoch_speed)
 
             model_dir = "{}/{}".format(save_model_path, epoch)
-            if fleet.is_first_worker() and save_model_path:
+            if save_model_path:
                 if is_distributed_env():
                     fleet.save_inference_model(
                         self.exe, model_dir,
@@ -174,7 +174,6 @@ class Main(object):
                         model_dir,
                         [feed.name for feed in self.inference_feed_var],
                         [self.inference_target_var], self.exe)
-            fleet.barrier_worker()
 
         if reader_type == "InmemoryDataset":
             self.reader.release_memory()

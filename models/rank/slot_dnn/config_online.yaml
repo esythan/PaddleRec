@@ -51,7 +51,7 @@ hyper_parameters:
   slot_num: 300
   layer_sizes: [512, 256, 128]
   distributed_embedding: 0
-  # adam_d2sum: False
+  # adam_d2sum: True
 
 table_parameters:
   embedding:

@@ -173,13 +173,11 @@ class Main(object):
             self.train_result_dict["speed"].append(epoch_speed)
 
             model_dir = "{}/{}".format(save_model_path, epoch)
-            if fleet.is_first_worker(
-            ) and save_model_path and is_distributed_env():
+            if save_model_path and is_distributed_env():
                 fleet.save_inference_model(
                     self.exe, model_dir,
                     [feed.name for feed in self.input_data],
                     self.inference_target_var)
-            fleet.barrier_worker()
             self.reader.release_memory()
             self.PSGPU.end_pass()
             logger.info("finish {} epoch training....".format(epoch))

@@ -130,9 +130,7 @@ class Main(object):
 
         init_model_path = config.get("runner.init_model_path")
         model_mode = config.get("runner.model_mode", 0)
-        if fleet.is_first_worker():
-            fleet.load_model(init_model_path, mode=model_mode)
-        fleet.barrier_worker()
+        fleet.load_model(init_model_path, mode=model_mode)
 
         logger.info("Prepare Dataset Begin.")
         prepare_data_start_time = time.time()
