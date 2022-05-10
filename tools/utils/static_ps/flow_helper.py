@@ -112,7 +112,7 @@ def get_online_pass_interval(split_interval, split_per_pass,
     return online_pass_interval
 
 
-def load_model(model_path, mode, client):
+def load_model(model_path, mode):
     fleet.load_model(model_path, mode)
 
 

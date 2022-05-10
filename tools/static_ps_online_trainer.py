@@ -245,7 +245,7 @@ class Main(object):
             "get_last_save_model last_day = {}, last_pass = {}, last_path = {}, xbox_base_key = {}".
             format(last_day, last_pass, last_path, xbox_base_key))
         if last_day != -1:
-            load_model(last_path, 0, self.hadoop_client)
+            load_model(last_path, 0)
 
         day = self.start_day
         infer_first = True
