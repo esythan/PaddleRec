@@ -77,6 +77,12 @@ class AutoIntLayer(nn.Layer):
                 initializer=paddle.nn.initializer.TruncatedNormal(
                     std=1.0 / math.sqrt(float(inter_out_dim)))))
 
+    def normalize(self, x):
+        mean = paddle.mean(x, axis=-1)
+        sub = paddle.subtract(x, paddle.unsqueeze(mean, axis=2))
+        out = paddle.nn.functional.normalize(sub, axis=-1)
+        return out
+
     def forward(self, sparse_inputs, dense_inputs):
         sparse_inputs_concat = paddle.concat(sparse_inputs, axis=1)
         sparse_embeddings = self.embedding(sparse_inputs_concat)
@@ -86,10 +92,15 @@ class AutoIntLayer(nn.Layer):
                                         1)
         inter_input = feat_embeddings
         for _ in range(self.interacting_layers):
+            # mha
             mha_out = self.multi_head_attention(inter_input)
+            # residual
             res_out = paddle.matmul(inter_input, self.residual_w)
             inter_out = paddle.add(mha_out, res_out)
-            inter_input = paddle.nn.functional.relu(inter_out)
+            inter_out = paddle.nn.functional.relu(inter_out)
+            # normalize
+            inter_out = self.normalize(inter_out)
+            inter_input = inter_out
 
         dnn_input = paddle.flatten(inter_out, start_axis=1)
         dnn_out = self.dnn_layer(dnn_input)
