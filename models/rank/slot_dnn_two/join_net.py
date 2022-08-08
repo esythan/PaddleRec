@@ -41,8 +41,6 @@ class JoinDNNLayer(nn.Layer):
             "nid_adjw_threshold")
         self.nid_adjw_ratio = adjust_ins_weight_config.get("nid_adjw_ratio")
 
-        self.entry = paddle.distributed.ShowClickEntry("show", "click")
-
         sizes = [emb_dim * slot_num] + self.layer_sizes + [1]
         acts = ["relu" for _ in range(len(self.layer_sizes))] + [None]
         scales = []
@@ -73,10 +71,12 @@ class JoinDNNLayer(nn.Layer):
         bows = []
         cvms = []
         self.inference_feed_vars = []
-        show_clk = fluid.layers.cast(
-            fluid.layers.concat(
-                [show, click], axis=1), dtype='float32')
+        show_cast = paddle.cast(show, dtype='float32')
+        click_cast = paddle.cast(click, dtype='float32')
+        show_clk = fluid.layers.concat([show_cast, click_cast], axis=1)
         show_clk.stop_gradient = True
+        self.entry = paddle.distributed.ShowClickEntry(show_cast.name,
+                                                       click_cast.name)
         for s_input in slot_inputs:
             emb = paddle.static.nn.sparse_embedding(
                 input=s_input,

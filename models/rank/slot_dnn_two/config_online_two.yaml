@@ -12,8 +12,8 @@ runner:
   train_thread_num: 3
   shuffle_thread_num: 12
   reader_type: "InMemoryDataset"  # DataLoader / QueueDataset / RecDataset
-  # pipe_command: "python3.7 queuedataset_reader.py"
-  pipe_command: "cat"
+  pipe_command: "python3.7 queuedataset_reader.py"
+  # pipe_command: "cat"
   dataset_debug: False
   # data_donefile: "data.done"
   data_sleep_second: 1
@@ -48,7 +48,7 @@ hyper_parameters:
   # user-defined <key, value> pairs
   dict_dim : 1000000
   emb_dim : 11
-  slot_num: 408  
+  slot_num: 300  
   join_layer_sizes: [511, 255, 255, 127, 127, 127, 127]
   update_layer_sizes: [511, 255, 127, 127, 127]
   distributed_embedding: 0
@@ -63,10 +63,12 @@ table_parameters:
   embedding:
     table_class: "MemorySparseTable"
     shard_num: 10
+    # enable_sparse_table_cache: false
+    # enable_revert: true
     accessor:
       accessor_class: "CtrCommonAccessor"
-      fea_dim: 11
-      embedx_dim: 8
+      # fea_dim: 11
+      # embedx_dim: 8
       embedx_threshold: 10
       embed_sgd_param:
         name: "SparseAdaGradSGDRule"
