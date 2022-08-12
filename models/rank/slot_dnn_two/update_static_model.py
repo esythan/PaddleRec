@@ -14,7 +14,6 @@
 
 import math
 import paddle
-import paddle.fluid as fluid
 
 from update_net import UpdateDNNLayer
 
@@ -26,8 +25,8 @@ class UpdateStaticModel():
         self.config = config
         self._init_hyper_parameters()
         self.sync_mode = config.get("runner.sync_mode")
-        self._train_program = fluid.Program()
-        self._startup_program = fluid.Program()
+        self._train_program = paddle.static.Program()
+        self._startup_program = paddle.static.Program()
 
     def _init_hyper_parameters(self):
         self.is_distributed = False
@@ -83,7 +82,7 @@ class UpdateStaticModel():
             self.show_input = input[1]
             self.label_input = input[2]
             self.slot_inputs = input[3:]
-            # paddle.fluid.layers.Print(self.ins_weight, message="origin ins weight update")
+            # paddle.static.Print(self.ins_weight, message="origin ins weight update")
 
             dnn_model = UpdateDNNLayer(
                 self.dict_dim,
@@ -97,7 +96,7 @@ class UpdateStaticModel():
                 self.show_input, self.label_input, self.ins_weight,
                 self.slot_inputs)
 
-            # paddle.fluid.layers.Print(adjust_ins_weight, message="adjust ins weight update")
+            # paddle.static.Print(adjust_ins_weight, message="adjust ins weight update")
 
             # self.all_vars = input + dnn_model.all_vars
             self.all_vars = dnn_model.all_vars
@@ -108,9 +107,8 @@ class UpdateStaticModel():
 
             auc, batch_auc_var, auc_stat_list = paddle.static.auc(
                 input=predict_2d, label=self.label_input, slide_steps=0)
-            metric_list = fluid.contrib.layers.ctr_metric_bundle(
-                self.predict,
-                fluid.layers.cast(
+            metric_list = paddle.static.ctr_metric_bundle(
+                self.predict, paddle.cast(
                     x=self.label_input, dtype='float32'))
 
             self.thread_stat_var_names = [
@@ -132,11 +130,11 @@ class UpdateStaticModel():
             cost = paddle.nn.functional.log_loss(
                 input=self.predict,
                 label=paddle.cast(self.label_input, "float32"))
-            # cost = paddle.fluid.layers.Print(cost, summarize=-1)
+            # cost = paddle.static.Print(cost, summarize=-1)
             cost = paddle.multiply(cost, adjust_ins_weight)
-            # cost = paddle.fluid.layers.Print(cost, summarize=-1)
+            # cost = paddle.static.Print(cost, summarize=-1)
             avg_cost = paddle.mean(x=cost)
-            # avg_cost = paddle.fluid.layers.Print(avg_cost, summarize=-1)
+            # avg_cost = paddle.static.Print(avg_cost, summarize=-1)
             self._cost = avg_cost
             fetch_dict = {
                 'predict': self.predict,

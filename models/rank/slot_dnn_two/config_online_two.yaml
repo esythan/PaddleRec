@@ -1,5 +1,5 @@
 runner:
-  train_data_dir: "./data_demo"
+  train_data_dir: "./data"
   # train_data_dir: "afs:/xxx"
   use_gpu: False
   train_batch_size: 32
@@ -8,8 +8,9 @@ runner:
   # model_save_path: "afs:/xxx"
   checkpoint_per_pass: 1
   save_delta_frequency: 1
+  save_delta_before_update: True
 
-  train_thread_num: 3
+  train_thread_num: 12
   shuffle_thread_num: 12
   reader_type: "InMemoryDataset"  # DataLoader / QueueDataset / RecDataset
   pipe_command: "python3.7 queuedataset_reader.py"
@@ -17,9 +18,10 @@ runner:
   dataset_debug: False
   # data_donefile: "data.done"
   data_sleep_second: 1
+  prefetch: True
   sync_mode: "async"
 
-  split_interval: 720
+  split_interval: 30
   split_per_pass: 1
   start_day: "20190720"
   end_day: "20190722"

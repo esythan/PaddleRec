@@ -16,7 +16,6 @@ import paddle
 import paddle.nn as nn
 import paddle.nn.functional as F
 import math
-import paddle.fluid as fluid
 
 
 class JoinDNNLayer(nn.Layer):
@@ -73,7 +72,7 @@ class JoinDNNLayer(nn.Layer):
         self.inference_feed_vars = []
         show_cast = paddle.cast(show, dtype='float32')
         click_cast = paddle.cast(click, dtype='float32')
-        show_clk = fluid.layers.concat([show_cast, click_cast], axis=1)
+        show_clk = paddle.concat([show_cast, click_cast], axis=1)
         show_clk.stop_gradient = True
         self.entry = paddle.distributed.ShowClickEntry(show_cast.name,
                                                        click_cast.name)
@@ -88,11 +87,11 @@ class JoinDNNLayer(nn.Layer):
             self.inference_feed_vars.append(emb)
 
             if self.need_adjust and s_input.name == self.nid_slot:
-                # paddle.fluid.layers.Print(emb, message="nid emb")
+                # paddle.static.Print(emb, message="nid emb")
                 nid_show, _ = paddle.split(
                     emb, num_or_sections=[1, self.emb_dim - 1], axis=-1)
-                # paddle.fluid.layers.Print(nid_show, message="nid show")
-                init_weight = fluid.layers.fill_constant_batch_size_like(
+                # paddle.static.Print(nid_show, message="nid show")
+                init_weight = paddle.fluid.layers.fill_constant_batch_size_like(
                     input=ins_weight,
                     shape=[-1, 1],
                     dtype="float32",
@@ -100,22 +99,22 @@ class JoinDNNLayer(nn.Layer):
                 weight = paddle.log(
                     math.e + (self.nid_adjw_threshold - nid_show) /
                     self.nid_adjw_threshold * self.nid_adjw_ratio)
-                # paddle.fluid.layers.Print(weight, message="ins weight in net")
+                # paddle.static.Print(weight, message="ins weight in net")
                 weight = paddle.where(nid_show >= 0 and
                                       nid_show < self.nid_adjw_threshold,
                                       weight, init_weight)
                 ins_weight = paddle.where(weight > ins_weight, weight,
                                           ins_weight)
-                # paddle.fluid.layers.Print(ins_weight, message="adjust ins weight in net")
+                # paddle.static.Print(ins_weight, message="adjust ins weight in net")
             ins_weight.stop_gradient = True
 
-            bow = paddle.fluid.layers.sequence_pool(input=emb, pool_type='sum')
+            bow = paddle.static.nn.sequence_pool(input=emb, pool_type='sum')
             bow.stop_gradient = True
             self.all_vars.append(bow)
-            #paddle.fluid.layers.Print(bow)
+            # paddle.static.Print(bow)
             bows.append(bow)
 
-            cvm = fluid.layers.continuous_value_model(bow, show_clk, True)
+            cvm = paddle.static.nn.continuous_value_model(bow, show_clk, True)
             cvm.stop_gradient = True
             self.all_vars.append(cvm)
             cvms.append(cvm)
@@ -134,11 +133,11 @@ class JoinDNNLayer(nn.Layer):
                 "batch_square": 1e4
             })
         self.all_vars.append(y_dnn)
-        # y_dnn = paddle.fluid.layers.Print(y_dnn, summarize=-1)
+        # y_dnn = paddle.static.Print(y_dnn, summarize=-1)
 
         for n_layer in self._mlp_layers:
             y_dnn = n_layer(y_dnn)
-            # y_dnn = paddle.fluid.layers.Print(y_dnn, summarize=-1)
+            # y_dnn = paddle.static.Print(y_dnn, summarize=-1)
             self.all_vars.append(y_dnn)
 
         self.predict = F.sigmoid(paddle.clip(y_dnn, min=-15.0, max=15.0))
